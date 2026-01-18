@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: polymarket-scanner
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m src.dashboard.app
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0

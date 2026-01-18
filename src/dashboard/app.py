@@ -1103,6 +1103,10 @@ def fetch_live_prices(n_intervals, recommendations):
 
 def run_dashboard(debug: bool = True, port: int = 8050):
     """Run the dashboard server."""
+    import os
+    # Use PORT env variable for cloud deployment (Render, Heroku, etc.)
+    port = int(os.environ.get("PORT", port))
+    
     print(f"""
     ========================================================
     
@@ -1119,4 +1123,4 @@ def run_dashboard(debug: bool = True, port: int = 8050):
 
 
 if __name__ == "__main__":
-    run_dashboard(debug=True, port=8050)
+    run_dashboard(debug=False, port=8050)
