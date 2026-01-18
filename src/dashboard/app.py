@@ -139,6 +139,16 @@ app.layout = html.Div([
             ], style={"display": "flex", "alignItems": "center"}),
             
             html.Div([
+                html.Label("⚡ Quick Mode:", style={"color": COLORS["text_secondary"], "marginRight": "10px"}),
+                dcc.Checklist(
+                    id="use-cache-toggle",
+                    options=[{"label": " Use Cache", "value": "cache"}],
+                    value=[],  # Default: fetch live data
+                    style={"color": COLORS["accent_secondary"]}
+                )
+            ], style={"display": "flex", "alignItems": "center"}),
+            
+            html.Div([
                 html.Label("Min Price:", style={"color": COLORS["text_secondary"], "marginRight": "10px"}),
                 dcc.Input(
                     id="min-prob-filter",
@@ -432,6 +442,7 @@ def update_time(n):
     [State("signal-filter", "value"),
      State("confidence-filter", "value"),
      State("ai-toggle", "value"),
+     State("use-cache-toggle", "value"),
      State("min-prob-filter", "value"),
      State("max-prob-filter", "value"),
      State("min-age-days", "value"),
@@ -440,12 +451,60 @@ def update_time(n):
      State("min-rr-ratio", "value"),
      State("num-results", "value")]
 )
-def fetch_recommendations(n_clicks, n_intervals, signal_filter, confidence_filter, ai_toggle, min_prob, max_prob, min_age_days, min_maturity_days, min_volume, min_rr_ratio, num_results):
-    """Fetch trade recommendations from the API."""
+def fetch_recommendations(n_clicks, n_intervals, signal_filter, confidence_filter, ai_toggle, use_cache, min_prob, max_prob, min_age_days, min_maturity_days, min_volume, min_rr_ratio, num_results):
+    """Fetch trade recommendations from the API or cache."""
     logger.info("Fetching recommendations...")
     
     total_fetched = 0
     logs = []
+    
+    # Check if using cache
+    use_cached_data = "cache" in (use_cache or [])
+    
+    if use_cached_data:
+        logs.append("[INFO] ⚡ Using cached data (Quick Mode)")
+        try:
+            from ..database import db
+            cached_signals = db.get_active_signals(limit=num_results or 100)
+            if cached_signals:
+                logs.append(f"[OK] Loaded {len(cached_signals)} signals from cache")
+                
+                # Convert cached signals to expected format
+                data = []
+                for sig in cached_signals:
+                    data.append({
+                        "rank": len(data) + 1,
+                        "action": sig.get("signal_type", "HOLD"),
+                        "confidence": "high" if sig.get("confidence_score", 0) > 70 else "medium" if sig.get("confidence_score", 0) > 40 else "low",
+                        "question": sig.get("question", "Unknown"),
+                        "category": sig.get("category", ""),
+                        "current_price": sig.get("entry_price", 0),
+                        "entry_price": sig.get("entry_price", 0),
+                        "target_price": sig.get("target_price", 0),
+                        "stop_loss": sig.get("stop_loss", 0),
+                        "risk_reward": sig.get("risk_reward_ratio", 0),
+                        "profit_pct": abs(sig.get("target_price", 0) - sig.get("entry_price", 0)) / sig.get("entry_price", 1) * 100 if sig.get("entry_price") else 0,
+                        "loss_pct": abs(sig.get("entry_price", 0) - sig.get("stop_loss", 0)) / sig.get("entry_price", 1) * 100 if sig.get("entry_price") else 0,
+                        "total_score": sig.get("confidence_score", 0),
+                        "vol_score": sig.get("volatility_score", 0),
+                        "liq_score": sig.get("liquidity_score", 0),
+                        "ai_bias": sig.get("ai_bias"),
+                        "market_id": sig.get("market_id", ""),
+                        "created_at": sig.get("created_at", "")
+                    })
+                
+                if data:
+                    data[0]["_total_fetched"] = len(cached_signals)
+                    data[0]["_after_criteria"] = len(cached_signals)
+                    data[0]["_after_price_filter"] = len(cached_signals)
+                    data[0]["_logs"] = logs
+                    data[0]["_from_cache"] = True
+                return data if data else [{"_logs": logs + ["[INFO] No cached data. Click Refresh without Quick Mode to fetch live data."]}]
+            else:
+                logs.append("[INFO] No cached data found. Fetching live data...")
+        except Exception as e:
+            logs.append(f"[ERROR] Cache error: {str(e)}. Fetching live data...")
+    
     try:
         # Determine filters
         sig_filter = None if signal_filter == "ALL" else signal_filter
@@ -598,7 +657,13 @@ def update_console(data):
     # Add timestamp
     from datetime import datetime
     timestamp = datetime.utcnow().strftime("%H:%M:%S UTC")
-    status = f"Last update: {timestamp}"
+    
+    # Check if from cache
+    from_cache = data[0].get("_from_cache", False) if data else False
+    if from_cache:
+        status = f"⚡ Cache | {timestamp}"
+    else:
+        status = f"🔴 Live | {timestamp}"
     
     return log_elements, status
 
