@@ -1,0 +1,69 @@
+# ============================================
+# .gitignore - Fichiers à exclure de Git
+# ============================================
+# Ce fichier indique à Git quels fichiers/dossiers
+# NE PAS inclure dans le versioning (commits).
+# Utile pour : secrets, fichiers temporaires, caches
+# ============================================
+
+# === SECRETS & CONFIGURATION ===
+# Clés API, mots de passe - JAMAIS sur GitHub !
+config/.env
+*.env
+.env
+.env.local
+.env.production
+
+# === PYTHON ===
+# Cache Python (fichiers compilés)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+*.egg
+
+# === DATA & DATABASE ===
+# Bases de données locales
+data/*.db
+data/*.sqlite
+data/*.sqlite3
+*.db
+
+# Fichiers de données volumineux
+data/*.csv
+data/*.json
+!data/.gitkeep
+
+# === IDE & EDITORS ===
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# === LOGS & TEMP ===
+logs/
+*.log
+tmp/
+temp/
+
+# === OUTPUT ===
+output/*.csv
+output/*.json
+output/*.html
+!output/.gitkeep
+
+# Ignore nested project folder if exists
+polymarket_project/
